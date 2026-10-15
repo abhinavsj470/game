@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CYBER HORIZON 3D // Neon Tunnel Shooter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #b500ff;
+            --neon-yellow: #ffe600;
+            --neon-green: #00ff66;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #030308;
+            overflow: hidden;
+            font-family: 'Rajdhani', sans-serif;
+            color: #ffffff;
+        }
+
+        .font-cyber {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon Glow Utilities */
+        .glow-cyan {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4);
+        }
+        .glow-pink {
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
+        }
+        .glow-yellow {
+            text-shadow: 0 0 10px rgba(255, 230, 0, 0.8), 0 0 20px rgba(255, 230, 0, 0.4);
+        }
+
+        .box-glow-cyan {
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3), inset 0 0 15px rgba(0, 243, 255, 0.15);
+            border: 1px solid rgba(0, 243, 255, 0.6);
+        }
+
+        /* Arcade Buttons */
+        .cyber-btn {
+            position: relative;
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.15) 0%, rgba(181, 0, 255, 0.15) 100%);
+            border: 1.5px solid var(--neon-cyan);
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .cyber-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.35) 0%, rgba(181, 0, 255, 0.35) 100%);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.65);
+            transform: translateY(-2px);
+        }
+
+        .cyber-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .cyber-btn:disabled {
+            opacity: 0.4;
+            border-color: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .cyber-btn-pink {
+            border-color: var(--neon-pink);
+            background: linear-gradient(135deg, rgba(255, 0, 127, 0.2) 0%, rgba(181, 0, 255, 0.2) 100%);
+            box-shadow: 0 0 12px rgba(255, 0, 127, 0.3);
+        }
+
+        .cyber-btn-pink:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(255, 0, 127, 0.45) 0%, rgba(181, 0, 255, 0.45) 100%);
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.75);
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0, 0, 0, 0.18) 50%,
+                rgba(0, 0, 0, 0.18)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(0, 243, 255, 0.8); box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); }
+            50% { border-color: rgba(255, 0, 127, 0.9); box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); }
+        }
+
+        .emp-ready {
+            animation: pulse-border 1.1s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen bg-[#030308] select-none overflow-hidden">
+
+    <!-- TOP HUD BAR (Outside 3D Canvas) -->
+    <header class="w-full bg-[#070712]/95 border-b border-cyan-500/30 px-3 py-2 sm:px-6 sm:py-2.5 flex flex-wrap items-center justify-between gap-2 z-20 shrink-0">
+        <!-- Brand & Sector Speed -->
+        <div class="flex items-center gap-3 sm:gap-5">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
+                <h1 class="font-cyber font-black text-base sm:text-xl tracking-wider text-cyan-400 glow-cyan">
+                    CYBER<span class="text-pink-500 glow-pink">HORIZON</span> <span class="text-xs text-purple-400 font-semibold">3D</span>
+                </h1>
+            </div>
+            <div class="bg-slate-900/90 border border-cyan-500/40 rounded-lg px-2.5 py-0.5 flex items-center gap-2">
+                <span class="text-xs text-slate-400 uppercase tracking-widest">SECTOR</span>
+                <span id="hud-sector" class="font-cyber font-bold text-sm sm:text-base text-yellow-400 glow-yellow">01</span>
+            </div>
+            <div class="hidden sm:flex bg-slate-900/90 border border-pink-500/40 rounded-lg px-2.5 py-0.5 items-center gap-2">
+                <span class="text-xs text-slate-400 uppercase tracking-widest">MACH</span>
+                <span id="hud-speed" class="font-cyber font-bold text-sm text-pink-400">1.0x</span>
+            </div>
+        </div>
+
+        <!-- Score, Distance & Multiplier -->
+        <div class="flex items-center gap-4 sm:gap-6">
+            <div class="text-right">
+                <div class="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest">SCORE</div>
+                <div id="hud-score" class="font-cyber font-extrabold text-base sm:text-xl text-white tracking-wider">000000</div>
+            </div>
+
+            <div class="text-right">
+                <div class="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest">MULTIPLIER</div>
+                <div id="hud-combo" class="font-cyber font-extrabold text-base sm:text-xl text-pink-400 glow-pink">x1.0</div>
+            </div>
+
+            <div class="hidden md:block text-right border-l border-slate-800 pl-5">
+                <div class="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest">HIGH SCORE</div>
+                <div id="hud-high" class="font-cyber font-bold text-sm sm:text-base text-cyan-300">000000</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN 3D VIEWPORT -->
+    <main id="viewport-container" class="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-[#020206]">
+        <!-- Three.js Canvas Mount -->
+        <div id="canvas-container" class="w-full h-full absolute inset-0"></div>
+
+        <!-- CRT Scanline Aesthetic Layer -->
+        <div class="scanlines absolute inset-0 z-10"></div>
+
+        <!-- Active Power-Up Floating Indicator -->
+        <div id="powerup-toasts" class="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none"></div>
+
+        <!-- Camera Hint Banner -->
+        <div class="absolute top-3 right-3 z-10 pointer-events-none hidden sm:flex items-center gap-2 bg-slate-950/75 border border-cyan-500/30 px-3 py-1 rounded-full text-xs text-slate-300">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <span>Drag Mouse to Orbit Camera • Click / Space to Fire</span>
+        </div>
+
+        <!-- Floating Notification Text -->
+        <div id="center-banner" class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none text-center transition-all duration-300 opacity-0 scale-90">
+            <div id="center-banner-text" class="font-cyber font-black text-2xl sm:text-4xl text-yellow-400 glow-yellow tracking-widest uppercase">
+                SECTOR ADVANCE!
+            </div>
+        </div>
+
+        <!-- START / PAUSE / GAME OVER MODAL OVERLAY -->
+        <div id="modal-overlay" class="absolute inset-0 z-30 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 transition-opacity duration-300">
+            <div class="max-w-md w-full bg-[#080814]/95 box-glow-cyan rounded-2xl p-6 sm:p-8 text-center relative overflow-hidden">
+                <!-- Decorative Corner Accents -->
+                <div class="w-8 h-8 border-t-2 border-l-2 border-cyan-400 absolute top-3 left-3"></div>
+                <div class="w-8 h-8 border-t-2 border-r-2 border-pink-500 absolute top-3 right-3"></div>
+                <div class="w-8 h-8 border-b-2 border-l-2 border-pink-500 absolute bottom-3 left-3"></div>
+                <div class="w-8 h-8 border-b-2 border-r-2 border-cyan-400 absolute bottom-3 right-3"></div>
+
+                <div id="modal-badge" class="inline-block px-3 py-1 rounded-full text-xs font-cyber tracking-widest uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 mb-3">
+                    3D NEURAL LINK READY
+                </div>
+
+                <h2 id="modal-title" class="font-cyber font-black text-2xl sm:text-4xl tracking-wider text-white glow-cyan mb-2">
+                    CYBER HORIZON 3D
+                </h2>
+                <p id="modal-subtitle" class="text-slate-300 text-xs sm:text-sm mb-5 leading-relaxed">
+                    Pilot your 3D Starfighter down the infinite synthwave hyper-trench. Blast crimson hunter drones, dodge indestructible neon monoliths, and collect hyper-cores.
+                </p>
+
+                <!-- Final Stats Box (Hidden on initial screen) -->
+                <div id="modal-stats" class="hidden grid-cols-2 gap-3 bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 mb-5">
+                    <div>
+                        <div class="text-[11px] text-slate-400 uppercase">FINAL SCORE</div>
+                        <div id="final-score" class="font-cyber font-bold text-xl text-cyan-400">0</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] text-slate-400 uppercase">SECTOR REACHED</div>
+                        <div id="final-sector" class="font-cyber font-bold text-xl text-pink-400">1</div>
+                    </div>
+                </div>
+
+                <!-- Controls Legend -->
+                <div class="grid grid-cols-2 gap-2.5 text-left bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 mb-5 text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-cyan-300 font-cyber text-xs shrink-0">✥</span>
+                        <div>
+                            <div class="font-bold text-white leading-tight">Pilot Fighter</div>
+                            <div class="text-slate-400 text-[10px]">WASD / Arrows / Touch</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-pink-500/20 border border-pink-500/50 flex items-center justify-center text-pink-300 font-cyber text-xs shrink-0">🎥</span>
+                        <div>
+                            <div class="font-bold text-white leading-tight">3D Camera Angle</div>
+                            <div class="text-slate-400 text-[10px]">Click & Drag Mouse</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-yellow-300 font-cyber text-xs shrink-0">🔫</span>
+                        <div>
+                            <div class="font-bold text-white leading-tight">Plasma Cannons</div>
+                            <div class="text-slate-400 text-[10px]">Auto-Fire / Left Click</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-300 font-cyber text-xs shrink-0">⚡</span>
+                        <div>
+                            <div class="font-bold text-white leading-tight">EMP Shockwave</div>
+                            <div class="text-slate-400 text-[10px]">Spacebar / EMP Button</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Power-Up Legend -->
+                <div class="flex justify-around items-center text-[11px] text-slate-300 mb-6 px-1">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Twin/Tri Laser</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Aegis Shield</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span> Hyper Overdrive</span>
+                </div>
+
+                <button id="btn-start-game" class="cyber-btn w-full py-3.5 rounded-xl font-bold text-base sm:text-lg tracking-widest">
+                    ENGAGE HYPERDRIVE
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTTOM CONTROL & STATUS BAR (Outside 3D Canvas) -->
+    <footer class="w-full bg-[#070712]/95 border-t border-cyan-500/30 px-3 py-2 sm:px-6 sm:py-2.5 flex flex-wrap items-center justify-between gap-3 z-20 shrink-0">
+        <!-- Shield Integrity & EMP Overdrive Bars -->
+        <div class="flex items-center gap-4 sm:gap-6 flex-1 min-w-[240px]">
+            <!-- Hull Integrity -->
+            <div class="flex-1 max-w-[190px]">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-cyan-400 font-semibold tracking-wider uppercase">HULL ARMOR</span>
+                    <span id="hull-text" class="font-cyber text-white">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700 p-0.5">
+                    <div id="hull-bar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-200" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- EMP Blast Meter -->
+            <div class="flex-1 max-w-[190px]">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-pink-400 font-semibold tracking-wider uppercase">EMP SHOCKWAVE</span>
+                    <span id="emp-text" class="font-cyber text-pink-300">READY</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700 p-0.5">
+                    <div id="emp-bar" class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-200" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons Row -->
+        <div class="flex items-center gap-2 sm:gap-2.5 ml-auto">
+            <button id="btn-emp" class="cyber-btn cyber-btn-pink emp-ready px-3 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5" title="Trigger EMP Blast (Spacebar)">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>EMP BLAST</span>
+            </button>
+
+            <button id="btn-cam" class="cyber-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold" title="Cycle Camera View (C)">
+                CAM: <span id="cam-state" class="text-cyan-300">CHASE</span>
+            </button>
+
+            <button id="btn-autofire" class="cyber-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold" title="Toggle Auto-Cannons">
+                AUTO: <span id="autofire-state" class="text-cyan-300">ON</span>
+            </button>
+
+            <button id="btn-audio" class="cyber-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold" title="Toggle Synth Audio">
+                SFX: <span id="audio-state" class="text-emerald-400">ON</span>
+            </button>
+
+            <button id="btn-pause" class="cyber-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold" title="Pause Game (P)">
+                PAUSE
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * PROCEDURAL WEB AUDIO API SYNTHESIZER
+         * Generates retro-futuristic 3D laser, explosion, shield, and EMP sound effects.
+         */
+        class CyberSynthAudio {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playLaser(isTri = false) {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = isTri ? 'sawtooth' : 'square';
+                    osc.frequency.setValueAtTime(isTri ? 740 : 920, now);
+                    osc.frequency.exponentialRampToValueAtTime(160, now + 0.085);
+
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.085);
+                } catch (e) {}
+            }
+
+            playExplosion(heavy = false) {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const dur = heavy ? 0.42 : 0.22;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(heavy ? 130 : 210, now);
+                    osc.frequency.exponentialRampToValueAtTime(24, now + dur);
+
+                    gain.gain.setValueAtTime(heavy ? 0.22 : 0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + dur);
+                } catch (e) {}
+            }
+
+            playPowerup() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const freqs = [523.25, 659.25, 783.99, 1046.5];
+                    freqs.forEach((f, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.05);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.05);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.14);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.05);
+                        osc.stop(now + idx * 0.05 + 0.14);
+                    });
+                } catch (e) {}
+            }
+
+            playEMP() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.75);
+
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.75);
+                } catch (e) {}
+            }
+        }
+
+        const audio = new CyberSynthAudio();
+
+        // DOM Elements
+        const canvasContainer = document.getElementById('canvas-container');
+        const hudScore = document.getElementById('hud-score');
+        const hudHigh = document.getElementById('hud-high');
+        const hudCombo = document.getElementById('hud-combo');
+        const hudSector = document.getElementById('hud-sector');
+        const hudSpeed = document.getElementById('hud-speed');
+        const hullBar = document.getElementById('hull-bar');
+        const hullText = document.getElementById('hull-text');
+        const empBar = document.getElementById('emp-bar');
+        const empText = document.getElementById('emp-text');
+        const btnEmp = document.getElementById('btn-emp');
+        const btnCam = document.getElementById('btn-cam');
+        const camStateEl = document.getElementById('cam-state');
+        const btnAutoFire = document.getElementById('btn-autofire');
+        const autoFireStateEl = document.getElementById('autofire-state');
+        const btnAudio = document.getElementById('btn-audio');
+        const audioStateEl = document.getElementById('audio-state');
+        const btnPause = document.getElementById('btn-pause');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBadge = document.getElementById('modal-badge');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSubtitle = document.getElementById('modal-subtitle');
+        const modalStats = document.getElementById('modal-stats');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalSectorEl = document.getElementById('final-sector');
+        const btnStartGame = document.getElementById('btn-start-game');
+        const powerupToasts = document.getElementById('powerup-toasts');
+        const centerBanner = document.getElementById('center-banner');
+        const centerBannerText = document.getElementById('center-banner-text');
+
+        // Game State
+        const state = {
+            running: false,
+            paused: false,
+            score: 0,
+            highScore: parseInt(localStorage.getItem('cyber_horizon_3d_high') || '0', 10),
+            combo: 1.0,
+            comboDecayTimer: 0,
+            sector: 1,
+            distance: 0,
+            baseSpeed: 68,
+            speedMultiplier: 1.0,
+            autoFire: true,
+            cameraMode: 0, // 0: Chase, 1: Cockpit, 2: Wide Far
+            cameraModes: ['CHASE', 'COCKPIT', 'WIDE'],
+            camOrbitX: 0,
+            camOrbitY: 0,
+            isDraggingCam: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            screenShake: 0,
+            spawnTimer: 0,
+            powerupSpawnTimer: 0
+        };
+
+        hudHigh.textContent = String(state.highScore).padStart(6, '0');
+
+        // Player State
+        const player = {
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            boundsX: 11.5,
+            boundsY: 6.5,
+            hp: 100,
+            maxHp: 100,
+            empCharge: 100,
+            fireCooldown: 0,
+            invulnerable: 0,
+            triLaserTimer: 0,
+            overdriveTimer: 0,
+            shieldCharges: 0
+        };
+
+        // Input State
+        const input = {
+            keys: {},
+            isFiring: false,
+            touchActive: false,
+            touchX: 0,
+            touchY: 0
+        };
+
+        /**
+         * THREE.JS 3D SCENE INITIALIZATION
+         */
+        let scene, camera, renderer;
+        let playerGroup, shipMesh, shieldMesh, thrusterFlameL, thrusterFlameR, shipLight;
+        let tunnelRings = [];
+        let starField;
+        let lasers = [];
+        let obstacles = [];
+        let powerups = [];
+        let particles = [];
+        let empWaves = [];
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x030309);
+            scene.fog = new THREE.FogExp2(0x030309, 0.0075);
+
+            const rect = canvasContainer.getBoundingClientRect();
+            camera = new THREE.PerspectiveCamera(65, rect.width / rect.height, 0.1, 300);
+            camera.position.set(0, 2.6, 11);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(rect.width, rect.height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            canvasContainer.innerHTML = '';
+            canvasContainer.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x222244, 1.5);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x00f3ff, 1.2);
+            dirLight.position.set(10, 20, 15);
+            scene.add(dirLight);
+
+            const backLight = new THREE.DirectionalLight(0xff007f, 1.0);
+            backLight.position.set(-10, -15, -20);
+            scene.add(backLight);
+
+            createEnvironment();
+            createPlayerShip();
+        }
+
+        // Build Infinite Neon Cyber Tunnel & Starfield
+        function createEnvironment() {
+            tunnelRings = [];
+            const ringCount = 26;
+            const ringSpacing = 10;
+
+            const ringGeom = new THREE.TorusGeometry(16, 0.12, 8, 8);
+            for (let i = 0; i < ringCount; i++) {
+                const isPink = i % 2 === 0;
+                const mat = new THREE.MeshBasicMaterial({
+                    color: isPink ? 0xff007f : 0x00f3ff,
+                    wireframe: false
+                });
+                const ring = new THREE.Mesh(ringGeom, mat);
+                ring.position.z = -i * ringSpacing;
+                ring.rotation.z = Math.PI / 8;
+                scene.add(ring);
+                tunnelRings.push(ring);
+            }
+
+            // Longitudinal Neon Grid Rails
+            const railMaterial = new THREE.LineBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.65 });
+            for (let a = 0; a < 8; a++) {
+                const angle = (a / 8) * Math.PI * 2 + Math.PI / 8;
+                const rx = Math.cos(angle) * 16;
+                const ry = Math.sin(angle) * 16;
+                const points = [
+                    new THREE.Vector3(rx, ry, 15),
+                    new THREE.Vector3(rx, ry, -260)
+                ];
+                const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(lineGeom, railMaterial);
+                scene.add(line);
+            }
+
+            // 3D Warp Starfield
+            const starCount = 700;
+            const starGeom = new THREE.BufferGeometry();
+            const starPositions = new Float32Array(starCount * 3);
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i * 3] = (Math.random() - 0.5) * 90;
+                starPositions[i * 3 + 1] = (Math.random() - 0.5) * 90;
+                starPositions[i * 3 + 2] = -Math.random() * 260;
+            }
+            starGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMat = new THREE.PointsMaterial({
+                color: 0xa5f3fc,
+                size: 0.35,
+                transparent: true,
+                opacity: 0.8
+            });
+            starField = new THREE.Points(starGeom, starMat);
+            scene.add(starField);
+        }
+
+        // Build Sleek 3D Cyber Starfighter using Procedural Geometries
+        function createPlayerShip() {
+            playerGroup = new THREE.Group();
+
+            // Main Fuselage
+            const hullGeom = new THREE.ConeGeometry(0.85, 3.8, 5);
+            hullGeom.rotateX(Math.PI / 2);
+            const hullMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                emissive: 0x003344,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            shipMesh = new THREE.Mesh(hullGeom, hullMat);
+            playerGroup.add(shipMesh);
+
+            // Glowing Wireframe Overlay
+            const wireGeom = new THREE.EdgesGeometry(hullGeom);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0x00f3ff });
+            const wireMesh = new THREE.LineSegments(wireGeom, wireMat);
+            shipMesh.add(wireMesh);
+
+            // Swept Delta Wings
+            const wingGeom = new THREE.BoxGeometry(3.8, 0.1, 1.3);
+            const wingMat = new THREE.MeshStandardMaterial({
+                color: 0x1e1b4b,
+                emissive: 0xff007f,
+                emissiveIntensity: 0.45,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const wings = new THREE.Mesh(wingGeom, wingMat);
+            wings.position.set(0, 0, 0.6);
+            shipMesh.add(wings);
+
+            // Wingtip Laser Pods
+            const podGeom = new THREE.CylinderGeometry(0.12, 0.12, 1.8, 6);
+            podGeom.rotateX(Math.PI / 2);
+            const podMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+
+            const leftPod = new THREE.Mesh(podGeom, podMat);
+            leftPod.position.set(-1.85, 0, 0.3);
+            shipMesh.add(leftPod);
+
+            const rightPod = new THREE.Mesh(podGeom, podMat);
+            rightPod.position.set(1.85, 0, 0.3);
+            shipMesh.add(rightPod);
+
+            // Canopy Glass
+            const canopyGeom = new THREE.OctahedronGeometry(0.42, 1);
+            canopyGeom.scale(1, 0.6, 2.2);
+            const canopyMat = new THREE.MeshBasicMaterial({ color: 0xffe600, wireframe: true });
+            const canopy = new THREE.Mesh(canopyGeom, canopyMat);
+            canopy.position.set(0, 0.35, 0.2);
+            shipMesh.add(canopy);
+
+            // Dual Thruster Cones
+            const flameGeom = new THREE.ConeGeometry(0.24, 1.3, 8);
+            flameGeom.rotateX(-Math.PI / 2);
+            const flameMat = new THREE.MeshBasicMaterial({ color: 0xff007f });
+
+            thrusterFlameL = new THREE.Mesh(flameGeom, flameMat);
+            thrusterFlameL.position.set(-0.4, 0, 2.2);
+            shipMesh.add(thrusterFlameL);
+
+            thrusterFlameR = new THREE.Mesh(flameGeom, flameMat);
+            thrusterFlameR.position.set(0.4, 0, 2.2);
+            shipMesh.add(thrusterFlameR);
+
+            // Aegis Energy Shield Sphere
+            const shieldGeom = new THREE.IcosahedronGeometry(2.3, 1);
+            const shieldMat = new THREE.MeshBasicMaterial({
+                color: 0x00ff66,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.0
+            });
+            shieldMesh = new THREE.Mesh(shieldGeom, shieldMat);
+            playerGroup.add(shieldMesh);
+
+            // Dynamic Ship Point Light
+            shipLight = new THREE.PointLight(0x00f3ff, 2.0, 22);
+            shipLight.position.set(0, 0.5, -1);
+            playerGroup.add(shipLight);
+
+            scene.add(playerGroup);
+        }
+
+        // Fire Player Lasers in 3D Space
+        function firePlayerLasers() {
+            const hasTri = player.triLaserTimer > 0;
+            const color = player.overdriveTimer > 0 ? 0xffe600 : 0x00f3ff;
+
+            const offsets = hasTri
+                ? [
+                    { x: -1.8, y: 0, vx: -6 },
+                    { x: 0, y: 0, vx: 0 },
+                    { x: 1.8, y: 0, vx: 6 }
+                ]
+                : [
+                    { x: -1.65, y: 0, vx: 0 },
+                    { x: 1.65, y: 0, vx: 0 }
+                ];
+
+            const laserGeom = new THREE.CylinderGeometry(0.11, 0.11, 3.2, 6);
+            laserGeom.rotateX(Math.PI / 2);
+            const laserMat = new THREE.MeshBasicMaterial({ color });
+
+            offsets.forEach(off => {
+                const mesh = new THREE.Mesh(laserGeom, laserMat);
+                mesh.position.set(player.x + off.x, player.y + off.y, playerGroup.position.z - 2.0);
+                scene.add(mesh);
+                lasers.push({
+                    mesh,
+                    vx: off.vx,
+                    vz: -165,
+                    radius: 0.75
+                });
+            });
+
+            audio.playLaser(hasTri);
+        }
+
+        // Spawn Enemies & Obstacles Down the Tunnel
+        function spawnObstacleOrEnemy() {
+            const spawnZ = -230;
+            const x = (Math.random() - 0.5) * 2 * player.boundsX;
+            const y = (Math.random() - 0.5) * 2 * player.boundsY;
+
+            const roll = Math.random();
+            let mesh, type, hp, radius, scoreVal, destructible, rotSpeed;
+
+            if (roll < 0.58) {
+                // Destructible Crimson Hunter Drone (Octahedron + Ring)
+                type = 'drone';
+                destructible = true;
+                hp = 2 + Math.floor(state.sector / 3);
+                radius = 1.85;
+                scoreVal = 150;
+
+                const group = new THREE.Group();
+                const coreGeom = new THREE.OctahedronGeometry(1.45, 0);
+                const coreMat = new THREE.MeshStandardMaterial({
+                    color: 0xff0055,
+                    emissive: 0xaa0033,
+                    metalness: 0.6,
+                    roughness: 0.2
+                });
+                const core = new THREE.Mesh(coreGeom, coreMat);
+                group.add(core);
+
+                const wire = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(coreGeom),
+                    new THREE.LineBasicMaterial({ color: 0xff88bb })
+                );
+                group.add(wire);
+
+                mesh = group;
+                rotSpeed = { x: 2.2, y: 3.1, z: 1.2 };
+            } else if (roll < 0.85) {
+                // Destructible Golden Swarm Interceptor (Fast moving)
+                type = 'swarm';
+                destructible = true;
+                hp = 1 + Math.floor(state.sector / 4);
+                radius = 1.5;
+                scoreVal = 220;
+
+                const geom = new THREE.TetrahedronGeometry(1.55, 0);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0xffe600,
+                    emissive: 0x996600,
+                    metalness: 0.7,
+                    roughness: 0.2
+                });
+                mesh = new THREE.Mesh(geom, mat);
+                const wire = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(geom),
+                    new THREE.LineBasicMaterial({ color: 0xffffff })
+                );
+                mesh.add(wire);
+                rotSpeed = { x: 4.0, y: 2.5, z: 3.5 };
+            } else {
+                // Indestructible Purple Neon Monolith Barrier (Must Dodge!)
+                type = 'monolith';
+                destructible = false;
+                hp = 999;
+                radius = 2.2;
+                scoreVal = 0;
+
+                const geom = new THREE.BoxGeometry(3.4, 3.4, 2.2);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0x1e0038,
+                    emissive: 0xb500ff,
+                    emissiveIntensity: 0.6,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                mesh = new THREE.Mesh(geom, mat);
+                const wire = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(geom),
+                    new THREE.LineBasicMaterial({ color: 0x00f3ff })
+                );
+                mesh.add(wire);
+                rotSpeed = { x: 0, y: 0, z: 1.5 };
+            }
+
+            mesh.position.set(x, y, spawnZ);
+            scene.add(mesh);
+
+            obstacles.push({
+                mesh,
+                type,
+                destructible,
+                hp,
+                radius,
+                scoreVal,
+                rotSpeed,
+                strafePhase: Math.random() * Math.PI * 2,
+                strafeSpeed: type === 'swarm' ? 3.2 : 0
+            });
+        }
+
+        // Spawn Floating 3D Power-Up Cores
+        function spawnPowerupCore() {
+            const spawnZ = -210;
+            const x = (Math.random() - 0.5) * 1.6 * player.boundsX;
+            const y = (Math.random() - 0.5) * 1.6 * player.boundsY;
+
+            const types = [
+                { id: 'trilaser', label: 'TRI-LASER CANNONS', color: 0x00f3ff },
+                { id: 'shield', label: 'AEGIS SHIELD CORE', color: 0x00ff66 },
+                { id: 'overdrive', label: 'HYPER OVERDRIVE', color: 0xffe600 },
+                { id: 'repair', label: 'NANO HULL REPAIR', color: 0xff007f }
+            ];
+            const choice = types[Math.floor(Math.random() * types.length)];
+
+            const group = new THREE.Group();
+            const ringGeom = new THREE.TorusGeometry(1.15, 0.14, 8, 20);
+            const ringMat = new THREE.MeshBasicMaterial({ color: choice.color });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            group.add(ring);
+
+            const innerGeom = new THREE.OctahedronGeometry(0.65, 0);
+            const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+            const inner = new THREE.Mesh(innerGeom, innerMat);
+            group.add(inner);
+
+            group.position.set(x, y, spawnZ);
+            scene.add(group);
+
+            powerups.push({
+                mesh: group,
+                id: choice.id,
+                label: choice.label,
+                color: choice.color,
+                radius: 1.7
+            });
+        }
+
+        // Spawn 3D Particle Burst on Impact/Destruction
+        function create3DExplosion(pos, colorHex, count = 20) {
+            const geom = new THREE.TetrahedronGeometry(0.32, 0);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+            for (let i = 0; i < count; i++) {
+                const pMesh = new THREE.Mesh(geom, mat);
+                pMesh.position.copy(pos);
+
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const speed = Math.random() * 28 + 8;
+
+                scene.add(pMesh);
+                particles.push({
+                    mesh: pMesh,
+                    vx: Math.sin(phi) * Math.cos(theta) * speed,
+                    vy: Math.sin(phi) * Math.sin(theta) * speed,
+                    vz: Math.cos(phi) * speed,
+                    life: 1.0,
+                    decay: Math.random() * 1.5 + 1.0
+                });
+            }
+        }
+
+        // Trigger EMP Shockwave Blast
+        function triggerEMP() {
+            if (!state.running || state.paused || player.empCharge < 100) return;
+
+            player.empCharge = 0;
+            state.screenShake = 1.2;
+            audio.playEMP();
+
+            // Create expanding 3D torus shockwave
+            const waveGeom = new THREE.TorusGeometry(1.5, 0.25, 10, 32);
+            const waveMat = new THREE.MeshBasicMaterial({
+                color: 0xff007f,
+                transparent: true,
+                opacity: 1.0
+            });
+            const waveMesh = new THREE.Mesh(waveGeom, waveMat);
+            waveMesh.position.copy(playerGroup.position);
+            scene.add(waveMesh);
+            empWaves.push({ mesh: waveMesh, scale: 1 });
+
+            // Destroy all active obstacles & drones in the tunnel
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const ob = obstacles[i];
+                create3DExplosion(ob.mesh.position, 0x00f3ff, 14);
+                state.score += Math.round(200 * state.combo);
+                scene.remove(ob.mesh);
+                obstacles.splice(i, 1);
+            }
+
+            showBanner('EMP SHOCKWAVE UNLEASHED!', '#ff007f');
+            updateHUD();
+        }
+
+        // Display Temporary Center Screen Notification
+        let bannerTimeout = null;
+        function showBanner(text, colorHex = '#ffe600') {
+            centerBannerText.textContent = text;
+            centerBannerText.style.color = colorHex;
+            centerBanner.classList.remove('opacity-0', 'scale-90');
+            centerBanner.classList.add('opacity-100', 'scale-100');
+
+            if (bannerTimeout) clearTimeout(bannerTimeout);
+            bannerTimeout = setTimeout(() => {
+                centerBanner.classList.remove('opacity-100', 'scale-100');
+                centerBanner.classList.add('opacity-0', 'scale-90');
+            }, 1400);
+        }
+
+        // Render Power-Up Status Badges
+        function renderPowerupBadges() {
+            let html = '';
+            if (player.triLaserTimer > 0) {
+                html += `<div class="bg-cyan-950/90 border border-cyan-400 text-cyan-300 px-2.5 py-1 rounded-md text-xs font-cyber">TRI-LASER: ${player.triLaserTimer.toFixed(1)}s</div>`;
+            }
+            if (player.overdriveTimer > 0) {
+                html += `<div class="bg-yellow-950/90 border border-yellow-400 text-yellow-300 px-2.5 py-1 rounded-md text-xs font-cyber">OVERDRIVE: ${player.overdriveTimer.toFixed(1)}s</div>`;
+            }
+            if (player.shieldCharges > 0) {
+                html += `<div class="bg-emerald-950/90 border border-emerald-400 text-emerald-300 px-2.5 py-1 rounded-md text-xs font-cyber">AEGIS SHIELD: ${player.shieldCharges}x</div>`;
+            }
+            powerupToasts.innerHTML = html;
+        }
+
+        // Synchronize HUD Elements
+        function updateHUD() {
+            hudScore.textContent = String(state.score).padStart(6, '0');
+            if (state.score > state.highScore) {
+                state.highScore = state.score;
+                localStorage.setItem('cyber_horizon_3d_high', String(state.highScore));
+                hudHigh.textContent = String(state.highScore).padStart(6, '0');
+            }
+
+            hudCombo.textContent = `x${state.combo.toFixed(1)}`;
+            hudSector.textContent = String(state.sector).padStart(2, '0');
+            hudSpeed.textContent = `${state.speedMultiplier.toFixed(1)}x`;
+
+            const hpPct = Math.max(0, Math.round((player.hp / player.maxHp) * 100));
+            hullBar.style.width = `${hpPct}%`;
+            hullText.textContent = `${hpPct}%`;
+
+            const empPct = Math.min(100, Math.floor(player.empCharge));
+            empBar.style.width = `${empPct}%`;
+            if (empPct >= 100) {
+                empText.textContent = 'READY!';
+                btnEmp.disabled = false;
+                btnEmp.classList.add('emp-ready');
+            } else {
+                empText.textContent = `${empPct}%`;
+                btnEmp.disabled = true;
+                btnEmp.classList.remove('emp-ready');
+            }
+        }
+
+        // Reset Game Entities and Variables
+        function resetGame() {
+            // Clear 3D scene arrays
+            lasers.forEach(l => scene.remove(l.mesh));
+            obstacles.forEach(o => scene.remove(o.mesh));
+            powerups.forEach(p => scene.remove(p.mesh));
+            particles.forEach(pt => scene.remove(pt.mesh));
+            empWaves.forEach(w => scene.remove(w.mesh));
+
+            lasers = [];
+            obstacles = [];
+            powerups = [];
+            particles = [];
+            empWaves = [];
+
+            state.score = 0;
+            state.combo = 1.0;
+            state.comboDecayTimer = 0;
+            state.sector = 1;
+            state.distance = 0;
+            state.speedMultiplier = 1.0;
+            state.screenShake = 0;
+            state.spawnTimer = 0;
+            state.powerupSpawnTimer = 0;
+
+            player.x = 0;
+            player.y = 0;
+            player.targetX = 0;
+            player.targetY = 0;
+            player.hp = 100;
+            player.empCharge = 100;
+            player.invulnerable = 1.5;
+            player.triLaserTimer = 0;
+            player.overdriveTimer = 0;
+            player.shieldCharges = 1; // Start with 1 Aegis Shield
+
+            playerGroup.position.set(0, 0, 0);
+            playerGroup.rotation.set(0, 0, 0);
+
+            updateHUD();
+            renderPowerupBadges();
+        }
+
+        // Main 3D Simulation Step
+        function updateGame(dt) {
+            // Escalate Speed & Sector
+            const overdriveBoost = player.overdriveTimer > 0 ? 1.45 : 1.0;
+            state.speedMultiplier = (1.0 + (state.sector - 1) * 0.14) * overdriveBoost;
+            const currentSpeed = state.baseSpeed * state.speedMultiplier;
+
+            state.distance += currentSpeed * dt;
+            state.score += Math.round(currentSpeed * dt * 0.4 * state.combo);
+
+            // Advance Sector every 900 distance units
+            const newSector = 1 + Math.floor(state.distance / 900);
+            if (newSector > state.sector) {
+                state.sector = newSector;
+                showBanner(`SECTOR ${state.sector} REACHED!`, '#00f3ff');
+                audio.playPowerup();
+            }
+
+            // Decay Screen Shake
+            if (state.screenShake > 0) {
+                state.screenShake = Math.max(0, state.screenShake - dt * 3.2);
+            }
+
+            // Decay Combo
+            if (state.combo > 1.0) {
+                state.comboDecayTimer -= dt;
+                if (state.comboDecayTimer <= 0) {
+                    state.combo = Math.max(1.0, +(state.combo - 0.1).toFixed(1));
+                    state.comboDecayTimer = 2.0;
+                }
+            }
+
+            // Powerup Timers
+            let badgesChanged = false;
+            if (player.triLaserTimer > 0) {
+                player.triLaserTimer = Math.max(0, player.triLaserTimer - dt);
+                badgesChanged = true;
+            }
+            if (player.overdriveTimer > 0) {
+                player.overdriveTimer = Math.max(0, player.overdriveTimer - dt);
+                badgesChanged = true;
+            }
+            if (badgesChanged) renderPowerupBadges();
+
+            if (player.invulnerable > 0) {
+                player.invulnerable = Math.max(0, player.invulnerable - dt);
+            }
+
+            // Keyboard Steering
+            const steerSpeed = 22;
+            if (input.keys['KeyA'] || input.keys['ArrowLeft']) player.targetX -= steerSpeed * dt;
+            if (input.keys['KeyD'] || input.keys['ArrowRight']) player.targetX += steerSpeed * dt;
+            if (input.keys['KeyW'] || input.keys['ArrowUp']) player.targetY += steerSpeed * dt;
+            if (input.keys['KeyS'] || input.keys['ArrowDown']) player.targetY -= steerSpeed * dt;
+
+            // Clamp Target Bounds
+            player.targetX = Math.max(-player.boundsX, Math.min(player.boundsX, player.targetX));
+            player.targetY = Math.max(-player.boundsY, Math.min(player.boundsY, player.targetY));
+
+            // Smooth Ship Interpolation & Banking
+            const prevX = player.x;
+            const prevY = player.y;
+            player.x += (player.targetX - player.x) * Math.min(1, dt * 10);
+            player.y += (player.targetY - player.y) * Math.min(1, dt * 10);
+
+            const velX = (player.x - prevX) / Math.max(0.001, dt);
+            const velY = (player.y - prevY) / Math.max(0.001, dt);
+
+            playerGroup.position.set(player.x, player.y, 0);
+            // Dynamic aerodynamic roll & pitch
+            shipMesh.rotation.z = THREE.MathUtils.lerp(shipMesh.rotation.z, -velX * 0.045, dt * 10);
+            shipMesh.rotation.x = THREE.MathUtils.lerp(shipMesh.rotation.x, velY * 0.03, dt * 10);
+
+            // Thruster Flicker & Shield Visuals
+            const flameScale = 0.85 + Math.random() * 0.45 * state.speedMultiplier;
+            thrusterFlameL.scale.set(1, flameScale, 1);
+            thrusterFlameR.scale.set(1, flameScale, 1);
+
+            shieldMesh.material.opacity = player.shieldCharges > 0 ? 0.28 + Math.sin(performance.now() * 0.008) * 0.1 : 0;
+            shieldMesh.rotation.y += dt * 1.5;
+
+            // Blink ship when invulnerable
+            shipMesh.visible = !(player.invulnerable > 0 && Math.floor(player.invulnerable * 16) % 2 === 0);
+
+            // Update 3D Camera Position & Orbit Angle
+            updateCamera(dt);
+
+            // Move Tunnel Rings Toward Camera for Infinite Speed Illusion
+            for (const ring of tunnelRings) {
+                ring.position.z += currentSpeed * dt;
+                ring.rotation.z += dt * 0.25;
+                if (ring.position.z > 15) {
+                    ring.position.z -= 260;
+                }
+            }
+
+            // Move Starfield
+            const posAttr = starField.geometry.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                let z = posAttr.getZ(i) + currentSpeed * 1.2 * dt;
+                if (z > 15) z -= 260;
+                posAttr.setZ(i, z);
+            }
+            posAttr.needsUpdate = true;
+
+            // Fire Cannons
+            player.fireCooldown -= dt;
+            const fireInterval = player.overdriveTimer > 0 ? 0.085 : 0.16;
+            if ((state.autoFire || input.isFiring) && player.fireCooldown <= 0) {
+                firePlayerLasers();
+                player.fireCooldown = fireInterval;
+            }
+
+            // Spawn Obstacles & Hunter Drones
+            state.spawnTimer += dt;
+            const spawnRate = Math.max(0.24, 0.82 - state.sector * 0.055);
+            if (state.spawnTimer >= spawnRate) {
+                state.spawnTimer = 0;
+                spawnObstacleOrEnemy();
+            }
+
+            // Spawn Power-Ups
+            state.powerupSpawnTimer += dt;
+            if (state.powerupSpawnTimer >= 6.5) {
+                state.powerupSpawnTimer = 0;
+                spawnPowerupCore();
+            }
+
+            // Update Lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.mesh.position.x += l.vx * dt;
+                l.mesh.position.z += l.vz * dt;
+
+                if (l.mesh.position.z < -245) {
+                    scene.remove(l.mesh);
+                    lasers.splice(i, 1);
+                }
+            }
+
+            // Update Obstacles & Check Collisions
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const ob = obstacles[i];
+                ob.mesh.position.z += currentSpeed * dt;
+                ob.mesh.rotation.x += ob.rotSpeed.x * dt;
+                ob.mesh.rotation.y += ob.rotSpeed.y * dt;
+                ob.mesh.rotation.z += ob.rotSpeed.z * dt;
+
+                if (ob.strafeSpeed > 0) {
+                    ob.strafePhase += dt * ob.strafeSpeed;
+                    ob.mesh.position.x += Math.sin(ob.strafePhase) * 8 * dt;
+                }
+
+                // Check Laser vs Obstacle Collisions
+                let destroyed = false;
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const l = lasers[j];
+                    const dist = ob.mesh.position.distanceTo(l.mesh.position);
+                    if (dist < ob.radius + l.radius) {
+                        scene.remove(l.mesh);
+                        lasers.splice(j, 1);
+
+                        if (ob.destructible) {
+                            ob.hp--;
+                            create3DExplosion(l.mesh.position, 0xffe600, 5);
+                            if (ob.hp <= 0) {
+                                create3DExplosion(ob.mesh.position, ob.type === 'swarm' ? 0xffe600 : 0xff007f, 22);
+                                audio.playExplosion(false);
+
+                                state.combo = Math.min(10.0, +(state.combo + 0.2).toFixed(1));
+                                state.comboDecayTimer = 3.2;
+                                state.score += Math.round(ob.scoreVal * state.combo);
+                                player.empCharge = Math.min(100, player.empCharge + 6);
+
+                                scene.remove(ob.mesh);
+                                obstacles.splice(i, 1);
+                                destroyed = true;
+                                break;
+                            }
+                        } else {
+                            // Sparks off indestructible monolith
+                            create3DExplosion(l.mesh.position, 0xb500ff, 4);
+                        }
+                    }
+                }
+                if (destroyed) continue;
+
+                // Check Player vs Obstacle Collision
+                if (Math.abs(ob.mesh.position.z - playerGroup.position.z) < 2.3) {
+                    const distXY = Math.hypot(ob.mesh.position.x - player.x, ob.mesh.position.y - player.y);
+                    if (distXY < ob.radius + 1.35) {
+                        create3DExplosion(ob.mesh.position, 0xff007f, 25);
+                        scene.remove(ob.mesh);
+                        obstacles.splice(i, 1);
+
+                        if (player.invulnerable <= 0 && player.overdriveTimer <= 0) {
+                            if (player.shieldCharges > 0) {
+                                player.shieldCharges--;
+                                player.invulnerable = 1.0;
+                                audio.playExplosion(false);
+                                showBanner('AEGIS SHIELD ABSORBED IMPACT!', '#00ff66');
+                                renderPowerupBadges();
+                            } else {
+                                player.hp -= 25;
+                                player.invulnerable = 1.2;
+                                state.combo = 1.0;
+                                state.screenShake = 0.9;
+                                audio.playExplosion(true);
+                                showBanner('WARNING: HULL BREACH -25%', '#ff007f');
+                                updateHUD();
+
+                                if (player.hp <= 0) {
+                                    triggerGameOver();
+                                    return;
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                // Remove passed obstacles
+                if (ob.mesh.position.z > 16) {
+                    scene.remove(ob.mesh);
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Update Power-Up Cores
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const p = powerups[i];
+                p.mesh.position.z += currentSpeed * 0.85 * dt;
+                p.mesh.rotation.y += dt * 3;
+                p.mesh.rotation.x += dt * 2;
+
+                // Magnetic attraction when close
+                const dist3D = p.mesh.position.distanceTo(playerGroup.position);
+                if (dist3D < 14) {
+                    p.mesh.position.lerp(playerGroup.position, dt * 5.5);
+                }
+
+                if (dist3D < p.radius + 1.6) {
+                    audio.playPowerup();
+                    showBanner(p.label, '#00f3ff');
+                    create3DExplosion(p.mesh.position, p.color, 15);
+
+                    if (p.id === 'trilaser') player.triLaserTimer = 12.0;
+                    else if (p.id === 'overdrive') player.overdriveTimer = 8.0;
+                    else if (p.id === 'shield') player.shieldCharges = Math.min(3, player.shieldCharges + 1);
+                    else if (p.id === 'repair') player.hp = Math.min(player.maxHp, player.hp + 35);
+
+                    renderPowerupBadges();
+                    updateHUD();
+                    scene.remove(p.mesh);
+                    powerups.splice(i, 1);
+                    continue;
+                }
+
+                if (p.mesh.position.z > 15) {
+                    scene.remove(p.mesh);
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // Update 3D Particle Bursts
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.mesh.position.x += pt.vx * dt;
+                pt.mesh.position.y += pt.vy * dt;
+                pt.mesh.position.z += pt.vz * dt;
+                pt.mesh.rotation.x += 5 * dt;
+                pt.mesh.rotation.y += 5 * dt;
+                pt.life -= pt.decay * dt;
+                pt.mesh.scale.setScalar(Math.max(0.01, pt.life));
+
+                if (pt.life <= 0) {
+                    scene.remove(pt.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update EMP Shockwave Rings
+            for (let i = empWaves.length - 1; i >= 0; i--) {
+                const w = empWaves[i];
+                w.scale += dt * 55;
+                w.mesh.scale.setScalar(w.scale);
+                w.mesh.position.z -= dt * 90;
+                w.mesh.material.opacity = Math.max(0, 1 - w.scale / 28);
+                if (w.mesh.material.opacity <= 0) {
+                    scene.remove(w.mesh);
+                    empWaves.splice(i, 1);
+                }
+            }
+
+            updateHUD();
+        }
+
+        // Smooth Camera Controller with Mouse Drag Orbit Support
+        function updateCamera(dt) {
+            let baseOffset = { x: player.x * 0.55, y: player.y * 0.55 + 2.4, z: 10.5 };
+            if (state.cameraMode === 1) {
+                // Cockpit View
+                baseOffset = { x: player.x, y: player.y + 0.55, z: -0.6 };
+            } else if (state.cameraMode === 2) {
+                // Wide Arcade View
+                baseOffset = { x: player.x * 0.35, y: player.y * 0.35 + 4.2, z: 15.5 };
+            }
+
+            // Apply User Mouse-Drag Orbit Offset
+            const targetCamX = baseOffset.x + state.camOrbitX * 8;
+            const targetCamY = baseOffset.y + state.camOrbitY * 6;
+            const targetCamZ = baseOffset.z;
+
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCamX, dt * 8);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetCamY, dt * 8);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCamZ, dt * 8);
+
+            if (state.screenShake > 0) {
+                camera.position.x += (Math.random() - 0.5) * state.screenShake;
+                camera.position.y += (Math.random() - 0.5) * state.screenShake;
+            }
+
+            camera.lookAt(player.x * 0.7, player.y * 0.7, -30);
+        }
+
+        // Game Over State
+        function triggerGameOver() {
+            state.running = false;
+            modalBadge.textContent = 'CRITICAL HULL FAILURE';
+            modalBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-cyber tracking-widest uppercase bg-pink-500/20 text-pink-300 border border-pink-400/40 mb-3';
+            modalTitle.textContent = 'STARFIGHTER LOST';
+            modalSubtitle.textContent = 'Your interceptor was overwhelmed inside the hyper-trench. Reboot neural core and launch again.';
+            finalScoreEl.textContent = state.score.toLocaleString();
+            finalSectorEl.textContent = state.sector;
+            modalStats.classList.remove('hidden');
+            modalStats.classList.add('grid');
+            btnStartGame.textContent = 'RELAUNCH STARFIGHTER';
+            modalOverlay.classList.remove('hidden');
+        }
+
+        // Toggle Pause
+        function togglePause() {
+            if (!state.running) return;
+            state.paused = !state.paused;
+            btnPause.textContent = state.paused ? 'RESUME' : 'PAUSE';
+
+            if (state.paused) {
+                modalBadge.textContent = 'SYSTEM STANDBY';
+                modalTitle.textContent = 'HYPERDRIVE PAUSED';
+                modalSubtitle.textContent = 'Starfighter telemetry locked in stasis. Ready to resume on your command.';
+                modalStats.classList.add('hidden');
+                modalStats.classList.remove('grid');
+                btnStartGame.textContent = 'RESUME FLIGHT';
+                modalOverlay.classList.remove('hidden');
+            } else {
+                modalOverlay.classList.add('hidden');
+                lastFrameTime = performance.now();
+            }
+        }
+
+        // Responsive Window Resize Handler
+        function onWindowResize() {
+            if (!renderer || !camera) return;
+            const rect = canvasContainer.getBoundingClientRect();
+            camera.aspect = rect.width / rect.height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(rect.width, rect.height);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Input Listeners: Keyboard
+        window.addEventListener('keydown', (e) => {
+            input.keys[e.code] = true;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerEMP();
+            } else if (e.code === 'KeyP' || e.code === 'Escape') {
+                togglePause();
+            } else if (e.code === 'KeyC') {
+                cycleCamera();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            input.keys[e.code] = false;
+        });
+
+        // Input Listeners: Mouse Steering & Camera Angle Orbiting
+        const viewportEl = document.getElementById('viewport-container');
+
+        viewportEl.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#modal-overlay')) return;
+            audio.init();
+            state.isDraggingCam = true;
+            state.dragStartX = e.clientX;
+            state.dragStartY = e.clientY;
+            input.isFiring = true;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = viewportEl.getBoundingClientRect();
+            const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const normY = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+
+            if (state.isDraggingCam) {
+                // Orbit Camera Angle via Mouse Drag
+                state.camOrbitX = Math.max(-1.2, Math.min(1.2, (e.clientX - state.dragStartX) / 180));
+                state.camOrbitY = Math.max(-1.0, Math.min(1.0, -(e.clientY - state.dragStartY) / 180));
+            } else if (state.running && !state.paused) {
+                // Smoothly pilot ship toward mouse cursor
+                player.targetX = normX * player.boundsX;
+                player.targetY = normY * player.boundsY;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.isDraggingCam = false;
+            input.isFiring = false;
+            // Smoothly recenter camera orbit
+            state.camOrbitX *= 0.5;
+            state.camOrbitY *= 0.5;
+        });
+
+        // Touch Controls for Mobile & Tablet
+        viewportEl.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#modal-overlay')) return;
+            e.preventDefault();
+            audio.init();
+            if (e.touches.length >= 2) {
+                triggerEMP();
+            } else if (e.touches.length === 1) {
+                input.touchActive = true;
+                input.isFiring = true;
+                updateTouchTarget(e.touches[0]);
+            }
+        }, { passive: false });
+
+        viewportEl.addEventListener('touchmove', (e) => {
+            if (e.target.closest('#modal-overlay')) return;
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                updateTouchTarget(e.touches[0]);
+            }
+        }, { passive: false });
+
+        viewportEl.addEventListener('touchend', () => {
+            input.touchActive = false;
+            input.isFiring = false;
+        });
+
+        function updateTouchTarget(touch) {
+            const rect = viewportEl.getBoundingClientRect();
+            const normX = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+            const normY = -(((touch.clientY - rect.top) / rect.height) * 2 - 1);
+            player.targetX = Math.max(-player.boundsX, Math.min(player.boundsX, normX * player.boundsX * 1.15));
+            player.targetY = Math.max(-player.boundsY, Math.min(player.boundsY, normY * player.boundsY * 1.15));
+        }
+
+        // UI Button Handlers
+        function cycleCamera() {
+            state.cameraMode = (state.cameraMode + 1) % state.cameraModes.length;
+            camStateEl.textContent = state.cameraModes[state.cameraMode];
+            state.camOrbitX = 0;
+            state.camOrbitY = 0;
+        }
+
+        btnStartGame.addEventListener('click', () => {
+            audio.init();
+            if (state.running && state.paused) {
+                togglePause();
+                return;
+            }
+            resetGame();
+            state.running = true;
+            state.paused = false;
+            btnPause.textContent = 'PAUSE';
+            modalOverlay.classList.add('hidden');
+            lastFrameTime = performance.now();
+        });
+
+        btnEmp.addEventListener('click', () => {
+            audio.init();
+            triggerEMP();
+        });
+
+        btnCam.addEventListener('click', cycleCamera);
+
+        btnAutoFire.addEventListener('click', () => {
+            state.autoFire = !state.autoFire;
+            autoFireStateEl.textContent = state.autoFire ? 'ON' : 'OFF';
+            autoFireStateEl.className = state.autoFire ? 'text-cyan-300' : 'text-slate-400';
+        });
+
+        btnAudio.addEventListener('click', () => {
+            audio.init();
+            audio.enabled = !audio.enabled;
+            audioStateEl.textContent = audio.enabled ? 'ON' : 'OFF';
+            audioStateEl.className = audio.enabled ? 'text-emerald-400' : 'text-slate-400';
+        });
+
+        btnPause.addEventListener('click', togglePause);
+
+        // Main Animation Loop
+        let lastFrameTime = performance.now();
+        function animate(now = performance.now()) {
+            requestAnimationFrame(animate);
+
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            if (state.running && !state.paused) {
+                updateGame(dt);
+            } else if (tunnelRings.length > 0) {
+                // Idle background animation while in menu
+                for (const ring of tunnelRings) {
+                    ring.position.z += 18 * dt;
+                    ring.rotation.z += dt * 0.15;
+                    if (ring.position.z > 15) ring.position.z -= 260;
+                }
+                playerGroup.rotation.z = Math.sin(now * 0.0015) * 0.12;
+                playerGroup.position.y = Math.sin(now * 0.0025) * 0.4;
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Start 3D Engine on Window Load
+        window.onload = function () {
+            initThreeJS();
+            onWindowResize();
+            updateHUD();
+            animate();
+        };
+    </script>
+</body>
+</html>
